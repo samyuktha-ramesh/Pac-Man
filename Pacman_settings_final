@@ -1,0 +1,43 @@
+import pygame
+import os
+
+#max score is 970
+
+#initialising the game
+BORDER = 30
+CELLW, CELLH = 30, 30   # width and height of each cell, in pixels
+GRIDW, GRIDH = 20, 21   # number of cells in the grid, horizontally and vertically
+MAZEWIDTH, MAZEHEIGHT = GRIDW * CELLW, GRIDH * CELLH
+WIDTH, HEIGHT = MAZEWIDTH+(2*BORDER), MAZEHEIGHT+(2*BORDER)
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.update()
+pygame.display.set_caption("Welcome to Pac-Man")
+
+#setting up paths for game assets
+game_folder = os.path.dirname(__file__)
+asset_folder = os.path.join(game_folder, 'pacman assets')
+pacmanright_img = pygame.image.load(os.path.join(asset_folder, 'pacman_right.png')).convert()
+pacmanleft_img = pygame.image.load(os.path.join(asset_folder, 'pacman_left.png')).convert()
+pacmanup_img = pygame.image.load(os.path.join(asset_folder, 'pacman_up.png')).convert()
+pacmandown_img = pygame.image.load(os.path.join(asset_folder, 'pacman_down.png')).convert()
+# background_img = pygame.image.load(os.path.join(asset_folder, 'originalpacmaze.png')).convert()
+yellow_ghost_img = pygame.image.load(os.path.join(asset_folder, 'yellow.png')).convert()
+pink_ghost_img = pygame.image.load(os.path.join(asset_folder, 'pink.png')).convert()
+red_ghost_img = pygame.image.load(os.path.join(asset_folder, 'red.png')).convert()
+blue_ghost_img = pygame.image.load(os.path.join(asset_folder, 'blue.png')).convert()
+
+#colours
+WHITE = (255, 255, 255)
+BLACK = (0,0,0)
+BLUE = (25,140,255)
+RED = (255,128,128)
+YELLOW = (255, 255, 0)
+GREY = (128, 128, 128)
+
+#sounds
+INTRO_SOUND = pygame.mixer.Sound("pacman_beginning.wav")
+EAT_SOUND = pygame.mixer.Sound("eat_coin.wav")
+DEATH_SOUND = pygame.mixer.Sound("pacman_death.wav")
+
+CLOCK = pygame.time.Clock()
