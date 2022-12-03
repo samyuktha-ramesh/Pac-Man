@@ -1,0 +1,373 @@
+import pygame
+import random
+import math
+
+from Pacman_settings_final import *
+
+class Game():
+    def __init__(self):
+        self.game_over = False
+        self.wall = [[False] * GRIDH for _ in range(GRIDW)]     # use [x][y] indexing
+        self.coins = set()
+        self.enemies = []
+        self.epos = [(8,10),(9,10),(10,10),(11,10)]
+        self.state = 'start'
+        self.tick_count = 0
+        self.play_intro = False
+        self.num_of_coins = 0
+
+    def start_SCREEN(self):
+        screen.fill(BLACK)
+        bigfont = pygame.font.Font(None, 50)
+        smallfont = pygame.font.Font(None, 30)
+        play_txt = smallfont.render('Press SPACE to play', False, GREY)
+        quit_game_txt = smallfont.render('Press ESC to quit', False, GREY)
+        txt = bigfont.render('Welcome to Pacman', False, WHITE)
+        instructions = smallfont.render('Use arrow keys to move, collect coins & avoid ghosts', False, WHITE)
+        screen.blit(txt, [WIDTH//4,HEIGHT//3])
+        screen.blit(instructions, [WIDTH//10, (HEIGHT//3)+50])
+        screen.blit(play_txt, [(WIDTH//3)+30, (HEIGHT//3)+100])
+        screen.blit(quit_game_txt, [(WIDTH//3)+40, (HEIGHT//3)+150])
+        pygame.display.update()
+
+    def end_SCREEN(self):
+        screen.fill(BLACK)
+        bigfont = pygame.font.Font(None, 35)
+        smallfont = pygame.font.Font(None, 25)
+        #if pacman.lives == 0:
+        # else:
+        #     play_again_txt = smallfont.render('Press SPACE to play again', False, GREY)
+        quit_game_txt = smallfont.render('Press ESC to quit', False, GREY)
+        if pacman.win:
+            txt = bigfont.render('Congratulations!! You Win :)', False, WHITE)
+        else:
+            txt = bigfont.render('Game Over :(', False, WHITE)
+            play_again_txt = smallfont.render('You have no lives left', False, GREY)
+            screen.blit(play_again_txt, [WIDTH//3, (HEIGHT//3)+50])
+        screen.blit(txt, [WIDTH//3,HEIGHT//3])
+        screen.blit(quit_game_txt, [WIDTH//3, (HEIGHT//3)+100])
+        pygame.display.update()
+
+    def events(self):
+        event = pygame.event.wait()
+        if event.type == pygame.QUIT:
+            self.game_over = True
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE and pacman.lives != 0:
+                self.num_of_coins = 0
+                self.create_wc()
+                self.play_intro = True
+                if self.state == 'start':
+                    self.state = 'playing'
+                else:
+                    self.restart()                    
+            elif event.key == pygame.K_ESCAPE:
+                self.game_over = True
+        
+    def grid(self):
+        for x in range((2*MAZEWIDTH//CELLW)+1):
+            pygame.draw.line(self.background, GREY, (x*CELLW, 0), (x*CELLW, HEIGHT))
+        for x in range((2*MAZEHEIGHT//CELLH)+1):
+            pygame.draw.line(self.background, GREY, (0, x*CELLH), (WIDTH, x*CELLH))
+
+    def create_wc(self):
+        with open("walls.txt", 'r') as file:
+            for y, line in enumerate(file):
+                for x, char in enumerate(line):
+                    if char == "1":
+                        self.wall[x][y] = True
+                    elif char == "0":
+                        self.num_of_coins += 1
+                        self.coins.add((x, y))
+
+        self.background = pygame.Surface((MAZEWIDTH, MAZEHEIGHT))
+        for x in range(GRIDW):
+            for y in range(GRIDH):
+                if self.wall[x][y]:
+                    rect = pygame.Rect(x * CELLW, y * CELLH, CELLW, CELLH)
+                    pygame.draw.rect(self.background, BLUE, rect)
+        
+        for x,y in [(8,9),(9,9),(10,9),(11,9)]:
+            rect = pygame.Rect(x * CELLW, y * CELLH, CELLW, 5)
+            pygame.draw.rect(self.background, RED, rect)
+
+    def insert_coins(self):
+        for coin in self.coins:
+            pygame.draw.circle(screen, YELLOW, ((coin[0]*CELLW + CELLW//2 + BORDER), 
+                    (coin[1]*CELLH + CELLH//2 + BORDER)), 2)
+
+    def text(self, text, score, screen, position, size, colour):
+        font = pygame.font.Font(None, size)
+        text_to_display = text + str(score)
+        txt = font.render(text_to_display, False, colour)
+        screen.blit(txt, position)
+
+    def play(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.game_over = True
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    pacman.want_dir = (-1,0) #left
+                if event.key == pygame.K_RIGHT:
+                    pacman.want_dir = (1,0) #right
+                if event.key == pygame.K_UP:
+                    pacman.want_dir = (0,-1) #up
+                if event.key == pygame.K_DOWN:
+                    pacman.want_dir = (0,1) #down
+        screen.fill(BLACK)
+        screen.blit(self.background, (BORDER, BORDER))
+        #self.grid()
+        self.insert_coins()
+        all_sprites.update()
+        self.text('Current Score: ', pacman.score, screen, [40,10], 26, WHITE)
+        self.text('Lives Left: ', pacman.lives, screen, [480,10], 26, WHITE)
+        all_sprites.draw(screen)
+        pygame.display.update()
+        if self.play_intro:
+            pygame.mixer.Sound.play(INTRO_SOUND)
+            pygame.time.wait(4000)
+            pacman.dir = (1,0)
+            self.play_intro = False
+        CLOCK.tick(30)
+        self.tick_count += 1
+
+    def life_lost(self):
+        pygame.mixer.Sound.play(DEATH_SOUND)
+        pygame.time.wait(2500)
+        pacman.lives -= 1
+        self.reset()
+        if pacman.lives == 0:
+            self.state = 'end'
+    
+    def restart(self):
+        #reset player
+        pacman.win = False
+        self.reset()
+        pacman.lives = 3
+        pacman.score = 0
+
+        #reset state
+        self.state = 'playing'
+    
+    def reset(self):
+        #reset pacman
+        pacman.dir = (1,0)
+        pacman.want_dir = None
+        pacman.set_image()
+        pacman.rect = pacman.image.get_rect()
+        pacman.rect.topleft = (BORDER, BORDER)
+        pacman.x, pacman.y = 0, 0
+
+        #reset ghosts
+        for ghost,pos in zip(ghosts, self.epos):
+            ghost.rect = ghost.image.get_rect()
+            ghost.rect.topleft = ghost.start
+            ghost.x, ghost.y = ghost.start
+
+class Character(pygame.sprite.Sprite):
+    def at_grid_point(self):
+        return self.x % CELLW == 0 and self.y % CELLH == 0
+
+    def gridpos(self):
+        return self.x // CELLW, self.y // CELLH
+    
+    def opposite_dir(self,dir):
+        dx, dy = dir
+        return (- dx, - dy)
+
+    def can_go_in_dir(self, dir):
+        if self.at_grid_point():
+            grid_x, grid_y = self.gridpos()
+            dx, dy = dir
+            return not arcadegame.wall[(grid_x + dx) % GRIDW][(grid_y + dy) % GRIDH]
+        else:
+            return dir == self.dir or dir == self.opposite_dir(self.dir)
+
+    def bounding_box(self):
+        x,y = self.rect.topleft
+        return pygame.Rect(x+10, y+10, CELLW//4, CELLH//4)
+        
+
+class Pacman(Character):
+    def __init__(self):
+        self.win = False
+        self.score = 0
+        pygame.sprite.Sprite.__init__(self)
+        self.dir = (0,0)
+        self.want_dir = None    # the direction that Pac-Man wants to go
+        self.set_image()
+        self.lives = 3
+        self.x, self.y = 0, 0   # x, y position in pixels relative to upper-left corner of maze
+
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (BORDER, BORDER)
+
+    def set_image(self):
+        if self.dir == (0,1): #down
+            self.image = pygame.transform.scale(pacmandown_img, (CELLW, CELLH))
+        elif self.dir == (-1,0): #left
+            self.image = pygame.transform.scale(pacmanleft_img, (CELLW, CELLH))
+        elif self.dir == (0,-1): #up
+            self.image = pygame.transform.scale(pacmanup_img, (CELLW, CELLH))
+        else: #right
+            self.image = pygame.transform.scale(pacmanright_img, (CELLW, CELLH))
+        self.image.set_colorkey(BLACK) #ignores BLACK pixels in the image
+
+    def update(self):
+        if self.score == 5 * arcadegame.num_of_coins:
+            self.win = True
+            arcadegame.state = 'end'
+
+        if self.want_dir and self.can_go_in_dir(self.want_dir):
+            self.dir = self.want_dir
+            self.set_image()
+            self.want_dir = None
+
+        if not self.can_go_in_dir(self.dir):
+            return  # can't go that way
+
+        dx, dy = self.dir
+
+        self.x += 3 * dx
+        self.y += 3 * dy
+
+        #wraps pacman around board
+        if self.x >= (MAZEWIDTH - CELLW) or self.x < 0:
+            self.x %= MAZEWIDTH
+        if self.y >= (MAZEHEIGHT - CELLH) or self.y < 0:
+            self.y %= MAZEHEIGHT
+
+        self.rect.topleft = (BORDER + self.x, BORDER + self.y)
+
+        #check if coin is there
+        grid_x, grid_y = self.gridpos()
+        if self.at_grid_point() and (grid_x, grid_y) in arcadegame.coins:
+            pygame.mixer.Sound.play(EAT_SOUND)
+            arcadegame.coins.remove((grid_x, grid_y))
+            self.score += 5
+
+class Enemy(Character):
+    def __init__(self, pos, pic, personality):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.transform.scale(pic, (MAZEWIDTH//21, MAZEHEIGHT//21))
+        self.image.set_colorkey(BLACK) #ignores BLACK pixels in the image
+        self.personality = personality
+        self.start = ((pos[0]*CELLW), (pos[1]*CELLH))
+        self.x, self.y = self.start
+        self.rect = self.image.get_rect()
+        self.rect.topleft = self.start
+        self.target = (0,0)
+        self.dir = (0,0)
+        self.speed = 0
+
+    def target_pacman(self):
+        pac_grid_x, pac_grid_y = pacman.gridpos()
+        return (pac_grid_x, pac_grid_y)
+
+    def update(self):
+        if self.at_grid_point():
+            if self.personality == 'blinky':
+                self.speed = 3
+                self.target = self.target_pacman()
+                if pacman.score > 5:
+                    self.smart_movement()
+            elif self.personality == 'pinky':
+                self.speed = 3
+                a = [x*4 for x in pacman.dir]
+                pac_grid_x, pac_grid_y = pacman.gridpos()
+                self.target = (pac_grid_x+a[0], pac_grid_y+a[1])
+                if pacman.score > 25:
+                    self.smart_movement()
+            elif self.personality == 'inky':
+                self.speed = 2
+                self.target = self.target_pacman()
+                if pacman.score > 50:
+                    self.smart_movement()
+            else:
+                self.speed = 3
+                if pacman.score > 50:
+                    self.random_movement()
+
+        if not self.can_go_in_dir(self.dir):
+            return  # can't go that way
+
+        dx, dy = self.dir
+        self.x += self.speed*dx
+        self.y += self.speed*dy
+
+        #updates the position
+        self.rect.topleft = (BORDER + self.x, BORDER + self.y)
+
+        #wraps ghosts around board
+        if self.x >= (MAZEWIDTH) or self.x < 0:
+            self.x %= MAZEWIDTH
+        if self.y >= (MAZEHEIGHT) or self.y < 0:
+            self.y %= MAZEHEIGHT
+
+        #checks for collision with pacman
+        # if self.gridpos() == pacman.gridpos():
+        if self.bounding_box().colliderect(pacman.bounding_box()):
+            print(self.bounding_box(), pacman.bounding_box())
+            arcadegame.life_lost()
+
+    def random_movement(self):
+        n = random.randint(1,4)
+        if n == 1: #right
+            new_dir = (1,0)
+        elif n == 2: #left
+            new_dir = (-1,0)
+        elif n == 3: #up
+            new_dir = (0,-1)
+        else: #down
+            new_dir = (0,1)
+        if new_dir != self.opposite_dir(self.dir):
+            self.dir = new_dir
+
+    def smart_movement(self):
+        count = 0
+        tx, ty = self.target
+        next_v = dict()
+        cx, cy = self.gridpos()
+        neighbours = [(1,0), (0,1), (-1,0), (0,-1)]
+        for nx, ny in neighbours:
+            # if 0 <= nx + cx and nx + cx <= 19:
+            #         if 0 <= ny + cy and ny + cy <= 20:
+                        if not arcadegame.wall[(cx+nx) % GRIDW][(cy+ny) % GRIDH] or [cx+nx, cy+ny] in arcadegame.epos:
+                            if (nx,ny) != self.opposite_dir(self.dir):
+                                v = math.sqrt((abs(tx-cx-nx)**2) + (abs(ty-cy-ny)**2))
+                                next_v[v] = (nx, ny)
+                                count += 1
+        if count > 0:
+            next_cell = next_v[min(next_v.keys())]
+            self.dir = next_cell
+        
+all_sprites = pygame.sprite.Group()
+
+#create gameboard
+arcadegame = Game()
+
+#create player object
+pacman = Pacman()
+
+#create ghost objects
+blueghost = Enemy([8,10], blue_ghost_img, 'inky')
+redghost = Enemy([9,10], red_ghost_img, 'blinky')
+yellowghost = Enemy([10,10], yellow_ghost_img, 'clyde')
+pinkghost = Enemy([11,10], pink_ghost_img, 'pinky')
+
+ghosts = [blueghost, pinkghost, yellowghost, redghost]
+all_sprites.add(pacman, ghosts)
+
+
+while arcadegame.game_over is False:
+    if arcadegame.state == 'start':
+        arcadegame.start_SCREEN()
+        arcadegame.events()
+    if arcadegame.state == 'playing':
+        arcadegame.play()
+    elif arcadegame.state == 'end':
+        arcadegame.end_SCREEN()
+        arcadegame.events()
+CLOCK.tick(5)
+pygame.quit()
